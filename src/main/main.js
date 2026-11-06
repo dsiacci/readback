@@ -67,6 +67,8 @@ ipcMain.handle('readback:status', () => {
     sdk: { available: Boolean(bindSmartSpectraIpc), error: sdkError },
     key: { found: Boolean(k.key), source: k.source, warning: k.warning },
     tower: { installed: tower.installed() },
+    // READBACK_SEED=71 npm start replays the same circuit (to rehearse, or to record a demo)
+    seed: /^\d{1,9}$/.test(process.env.READBACK_SEED || '') ? Number(process.env.READBACK_SEED) : null,
     version: app.getVersion(),
   };
 });

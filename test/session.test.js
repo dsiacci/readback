@@ -57,9 +57,26 @@ test('the timeline ties each climb to the message that came before it', () => {
   assert.equal(taxi.readback.accepted, false);
   assert.equal(negative.kind, 'negative');
   assert.ok(negative.pulseDelta > 10, `negative pulse delta ${negative.pulseDelta}`);
+  assert.ok(negative.pulseRise > 10, `negative pulse rise ${negative.pulseRise}`);
+  assert.ok(taxi.pulseRise > 2 && taxi.pulseRise < 6, `taxi pulse rise ${taxi.pulseRise}`);
   assert.ok(negative.breathDelta > 5, `negative breath delta ${negative.breathDelta}`);
   assert.deepEqual(negative.guide, { skipped: false });
   assert.equal(squawk.readback, null);
   const top = highlights(rows);
   assert.equal(top[0].text, 'F-ABCD, negative, QNH 1013');
+});
+
+test('a message does not inherit the climb of the one before it', () => {
+  // pulse jumps after the first message and stays up through the second
+  const pulse = [];
+  for (let t = 0; t <= 100000; t += 1000) pulse.push({ t, value: t < 15000 ? 60 : 75, confidence: 90, stable: true });
+  const events = [
+    { type: 'tower', t0: 10000, t1: 14000, toPilot: true, text: 'F-CD, negative, QNH 1013' },
+    { type: 'tower', t0: 40000, t1: 44000, toPilot: true, text: 'F-CD, runway 27, cleared to land' },
+  ];
+  const rows = buildTimeline(events, { pulse, breathing: [], chest: [] }, { pulse: { value: 60 }, traceBreathing: null });
+  assert.equal(rows[0].pulseRise, 15);
+  assert.equal(rows[1].pulseRise, 0);
+  assert.equal(rows[1].pulseDelta, 15, 'still up against the calm minute');
+  assert.deepEqual(highlights(rows).map((r) => r.text), ['F-CD, negative, QNH 1013']);
 });

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <!-- The page talks to nothing on the network: the tower and the SDK are
+       reached through the main process. The SDK runs a worker from a blob. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; worker-src 'self' blob:; media-src 'self' blob: mediastream:; connect-src 'self' blob:">
+  <title>Readback</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="bar">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M5 17h5l3-7 4 13 3-9 2 3h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      <span>Readback</span>
+    </div>
+    <div class="bar-mid" id="bar-mid"></div>
+    <div class="bar-right">
+      <span id="sim-badge" class="badge sim" hidden>Simulated signals</span>
+      <span id="cam-indicator" class="cam" data-on="false"><i></i><span>Camera off</span></span>
+      <button id="btn-stop" class="btn ghost danger small" hidden>Stop camera</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. Consent, before anything turns on -->
+    <section id="view-consent" class="view consent">
+      <div class="consent-intro">
+        <p class="eyebrow">Radio practice for student and private pilots</p>
+        <h1>Talk to the tower.<br>See what it does to you.</h1>
+        <p class="lead">A simulated tower talks to you, you read back, and the camera follows your pulse and your breathing while you do. Afterwards you see which messages made them climb.</p>
+        <p class="frame">A mirror for practice, not a measure of health. Readback compares you only with yourself, with a calm minute taken at the start. No medical claim, no normal or abnormal values, no "fit to fly". It is a practice game, not an approved training device: your instructor and your country's official phraseology manual are the reference.</p>
+      </div>
+
+      <div class="card consent-card">
+        <h2>Before the camera turns on</h2>
+        <dl class="facts">
+          <dt>What is measured</dt>
+          <dd>Your pulse and your breathing rate, from the video of your face and upper body, by the Presage SmartSpectra SDK. The computation runs on this computer.</dd>
+          <dt>What stays here</dt>
+          <dd>The camera images are never recorded and never sent. Your voice is transcribed on this computer by the tower's speech model, then dropped. The measurements stay in memory and are saved only if you press Save at the end, on this computer only, with a button to delete them.</dd>
+          <dt>What goes to Presage</dt>
+          <dd>The SDK contacts Presage's service to check your API key and your plan while it measures. Readback turns the SDK's telemetry off, so no usage summary is sent either. No image and no measured value leaves this computer.</dd>
+          <dt>How to stop</dt>
+          <dd>"Stop camera" at the top stays visible the whole time. Closing the window stops everything. The camera also turns off at the end of each circuit.</dd>
+        </dl>
+        <label class="check"><input type="checkbox" id="use-mic" checked> Use my microphone for my readbacks (otherwise I type them)</label>
+        <div class="consent-actions">
+          <button id="btn-camera" class="btn primary">I agree, turn the camera on</button>
+          <button id="btn-simulated" class="btn ghost">Try with simulated signals, no camera</button>
+        </div>
+        <ul class="checks" id="setup-checks"></ul>
+      </div>
+    </section>
+
+    <!-- 2. The calm minute -->
+    <section id="view-calm" class="view calm" hidden>
+      <div class="preview-frame" id="preview-frame" data-mode="blurred">
+        <video id="preview" autoplay playsinline muted></video>
+        <div class="preview-mask"><svg viewBox="0 0 200 200" aria-hidden="true"><ellipse cx="100" cy="82" rx="38" ry="48" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/><path d="M38 196c6-40 30-58 62-58s56 18 62 58" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/></svg><span id="mask-text">Preview hidden</span></div>
+        <p class="hint" id="validation">Starting the camera…</p>
+        <div class="preview-modes" role="group" aria-label="Camera preview">
+          <button data-mode="hidden">Hide</button><button data-mode="blurred">Blur</button><button data-mode="shown">Show</button>
+        </div>
+      </div>
+
+      <div class="calm-side">
+        <p class="eyebrow">Step 1 of 2</p>
+        <h1>A calm minute</h1>
+        <p class="lead">Sit the way you will for the radio, face the camera, breathe normally. This minute is your reference for the session, and only for this session.</p>
+        <div class="ring-wrap">
+          <svg class="ring" viewBox="0 0 120 120"><circle class="ring-bg" cx="60" cy="60" r="52"/><circle class="ring-fg" id="ring" cx="60" cy="60" r="52"/></svg>
+          <div class="ring-label"><span id="calm-seconds">60</span><small>seconds</small></div>
+        </div>
+        <div class="readings">
+          <div class="reading pulse"><label>Pulse</label><b id="calm-pulse">…</b><small id="calm-pulse-unit">waiting</small></div>
+          <div class="reading breath"><label>Breathing</label><b id="calm-breath">…</b><small id="calm-breath-unit">waiting</small></div>
+        </div>
+        <p class="note" id="calm-note">The pulse appears after about 12 seconds, the breathing after about 30.</p>
+
+        <details class="settings">
+          <summary>Your aircraft and the aerodrome</summary>
+          <label>Callsign <input id="set-callsign" value="F-ABCD" maxlength="6" spellcheck="false"></label>
+          <label>Aerodrome (fictional) <input id="set-aerodrome" value="Isola" maxlength="24" spellcheck="false"></label>
+          <label>Altimeter setting <select id="set-altimeter"><option>QNH</option><option>QFE</option></select></label>
+          <label>Speech model <select id="set-model"><option value="small.en">small.en (default)</option><option value="base.en">base.en (lighter)</option></select></label>
+          <label>Offer the breathing guide when my breathing is up by <select id="set-rise"><option value="3">3</option><option value="4" selected>4</option><option value="6">6</option><option value="99">never</option></select> breaths/min</label>
+        </details>
+
+        <div class="calm-actions">
+          <button id="btn-circuit" class="btn primary" disabled>Start the circuit</button>
+          <button id="btn-skip-calm" class="btn ghost small" hidden>Skip (simulated only)</button>
+        </div>
+        <p class="note" id="tower-note">Warming up the tower…</p>
+      </div>
+    </section>
+
+    <!-- 3. The circuit -->
+    <section id="view-radio" class="view radio" hidden>
+      <div class="radio-main">
+        <div class="comms">
+          <div class="comms-station"><label>Station</label><b id="station">—</b></div>
+          <div class="comms-freq"><label>Frequency</label><b id="freq">---.---</b></div>
+          <div class="comms-step"><label>Step</label><b id="step">—</b></div>
+        </div>
+        <p class="task" id="task"></p>
+        <ol class="log" id="log" aria-live="polite"></ol>
+        <div class="ptt-row">
+          <button id="ptt" class="ptt" disabled><span class="ptt-key">SPACE</span><span id="ptt-label">Hold to talk</span></button>
+          <div class="ptt-side">
+            <button id="btn-say-again" class="btn ghost small" disabled>Say again</button>
+            <form id="type-form" class="type-form"><input id="type-input" placeholder="…or type your transmission and press Enter" autocomplete="off" spellcheck="false" disabled></form>
+          </div>
+        </div>
+      </div>
+
+      <aside class="you">
+        <div class="you-state" id="you-state" data-state="idle">Waiting for the tower</div>
+        <div class="metric pulse">
+          <div class="metric-head"><label>Pulse</label><span class="metric-val" id="pulse-val">—</span></div>
+          <svg class="spark" id="pulse-spark" viewBox="0 0 240 56" preserveAspectRatio="none"></svg>
+          <small id="pulse-sub">bpm, compared with your calm minute</small>
+        </div>
+        <div class="metric breath">
+          <div class="metric-head"><label>Breathing</label><span class="metric-val" id="breath-val">—</span></div>
+          <svg class="spark" id="breath-spark" viewBox="0 0 240 56" preserveAspectRatio="none"></svg>
+          <small id="breath-sub">per minute, while you listen</small>
+        </div>
+        <label class="check small"><input type="checkbox" id="show-values"> Show values instead of differences</label>
+        <div class="mini-preview" id="mini-frame" data-mode="blurred"><video id="preview-mini" autoplay playsinline muted></video><div class="preview-mask"><span>Preview hidden</span></div></div>
+        <button id="btn-end" class="btn ghost small">End the session</button>
+      </aside>
+    </section>
+
+    <!-- 4. After the session -->
+    <section id="view-timeline" class="view timeline" hidden>
+      <div class="timeline-head">
+        <div>
+          <p class="eyebrow">After the circuit</p>
+          <h1>What made it climb</h1>
+          <p class="lead" id="tl-reference"></p>
+        </div>
+        <div class="tl-actions">
+          <button id="btn-save" class="btn ghost">Save on this computer</button>
+          <button id="btn-new" class="btn primary">New circuit</button>
+        </div>
+      </div>
+      <div class="highlights" id="highlights"></div>
+      <div class="card chart-card">
+        <svg id="tl-chart" class="tl-chart" viewBox="0 0 1000 240" preserveAspectRatio="none"></svg>
+        <div class="legend"><span class="lg lg-pulse">Pulse vs calm minute</span><span class="lg lg-tower">Tower</span><span class="lg lg-you">You</span><span class="lg lg-guide">Breathing guide</span></div>
+      </div>
+      <ol class="rows" id="tl-rows"></ol>
+      <div class="history" id="history"></div>
+      <p class="note">The pulse from the SDK is an average over about 12 seconds, so a climb shows up a few seconds after the message that caused it. Breathing is counted only while you were listening: it is not measured while you talk.</p>
+      <p class="note"><button id="btn-delete" class="linklike">Delete all saved sessions</button></p>
+    </section>
+  </main>
+
+  <!-- The breathing guide, before your readback -->
+  <div id="guide" class="guide-overlay" hidden>
+    <div class="guide-card">
+      <p class="eyebrow">Before your readback</p>
+      <h2>Your breathing picked up while you listened.</h2>
+      <p>The tower can wait. Three slow breaths?</p>
+      <div class="orb-wrap"><div class="orb" id="orb"></div><span class="orb-label" id="orb-label">Breathe in</span></div>
+      <svg class="guide-trace" id="guide-trace" viewBox="0 0 400 60" preserveAspectRatio="none"></svg>
+      <small class="guide-sub">Your chest, live</small>
+      <button id="guide-ready" class="btn ghost">I'm ready</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <script src="../../dist/renderer.js"></script>
+</body>
+</html>

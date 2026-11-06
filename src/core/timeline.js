@@ -6,7 +6,9 @@
 // The SDK's pulse is a 12-second average, so a reaction to a message shows up
 // over the next several seconds. Each tower message gets the time from its
 // first word to the end of your readback, plus that lag (cut at the next
-// message). Your breathing is counted only while you were listening, before
+// message). Its climb is the highest pulse in that time minus the pulse when
+// the message started, so a message does not inherit the climb of the one
+// before it; the level against the calm minute is given too. Your breathing is counted only while you were listening, before
 // the breathing guide if it came up.
 
 const { usable } = require('./baseline');
@@ -42,7 +44,9 @@ function buildTimeline(events, series, baseline, opts = {}) {
     const next = tower[i + 1] ? tower[i + 1].t0 : Infinity;
     const talk = talks.find((k) => k.t0 >= m.t0 && k.t0 < next) || null;
     const end = Math.min(next, (talk ? talk.t1 : m.t1) + lag);
-    const pulse = peak(series.pulse.filter((s) => s.t >= m.t0 && s.t <= end && usable(s)));
+    const usablePulse = series.pulse.filter((s) => usable(s));
+    const pulse = peak(usablePulse.filter((s) => s.t >= m.t0 && s.t <= end));
+    const start = lastBefore(usablePulse, m.t0);
     const guide = guides.find((g) => g.t0 >= m.t0 && g.t0 < next) || null;
     // Breathing in reaction to the message: from its first word until you
     // speak, or until the breathing guide starts, whichever comes first.
@@ -62,6 +66,7 @@ function buildTimeline(events, series, baseline, opts = {}) {
         ? { transcript: talk.transcript ?? '', accepted: talk.accepted ?? null, sayAgain: Boolean(talk.sayAgain) }
         : null,
       pulsePeak: pulse ? pulse.value : null,
+      pulseRise: pulse && start ? Math.max(0, pulse.value - start.value) : null,
       pulseDelta: pulse && basePulse !== null ? pulse.value - basePulse : null,
       breathRate: breath ? breath.rate : null,
       breathDelta: breath && Number.isFinite(baseBreath) ? breath.rate - baseBreath : null,
@@ -70,11 +75,24 @@ function buildTimeline(events, series, baseline, opts = {}) {
   });
 }
 
-/** The messages with the largest climb in pulse above your calm minute. */
-function highlights(rows, n = 3) {
+/** The latest sample at or before t (or the first one just after, within 3 s). */
+function lastBefore(samples, t) {
+  let best = null;
+  for (const s of samples) {
+    if (s.t <= t) best = s;
+    else {
+      if (!best && s.t - t <= 3000) best = s;
+      break;
+    }
+  }
+  return best;
+}
+
+/** The messages after which your pulse climbed the most, at least `minRise` bpm. */
+function highlights(rows, n = 3, minRise = 2) {
   return rows
-    .filter((r) => Number.isFinite(r.pulseDelta) && r.pulseDelta > 0)
-    .sort((a, b) => b.pulseDelta - a.pulseDelta)
+    .filter((r) => Number.isFinite(r.pulseRise) && r.pulseRise >= minRise)
+    .sort((a, b) => b.pulseRise - a.pulseRise)
     .slice(0, n);
 }
 

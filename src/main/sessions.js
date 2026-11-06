@@ -8,7 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROW_FIELDS = ['t0', 'speaker', 'text', 'kind', 'label', 'load', 'pulsePeak', 'pulseDelta', 'breathRate', 'breathDelta'];
+const ROW_FIELDS = ['t0', 'speaker', 'text', 'kind', 'label', 'load', 'pulsePeak', 'pulseRise', 'pulseDelta', 'breathRate', 'breathDelta'];
 
 function finite(x) {
   return Number.isFinite(x) ? x : null;
