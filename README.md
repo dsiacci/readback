@@ -19,13 +19,13 @@ No camera at hand? "Try with simulated signals" runs the whole experience with m
 
 ## How it responds to the signals
 
-Readback asks the SDK for the breathing and cardio bundles and reads three things from each `metrics` event: the pulse rate (a 12-second average), the breathing rate (a 30-second average) and the chest movement trace.
+Readback asks the SDK for three metrics only, and reads them from each `metrics` event: the pulse rate (a 12-second average), the breathing rate (a 30-second average) and the chest movement trace. Nothing else is computed: no apnea detection, no HRV, no face analysis.
 
 ```js
 // src/renderer/signals.js
 const sdk = new SmartSpectraSDK({
   apiKey,                                   // read by the main process from your key file
-  requestedMetrics: [...breathingMetrics, ...cardioMetrics],
+  requestedMetrics: [MetricType.CHEST_BREATHING, MetricType.BREATHING_RATE, MetricType.PULSE_RATE],
   enableTelemetry: false,                   // no usage summary goes to Presage
 });
 sdk.on('metrics', (buf) => handlers.onPayload(decodeMetrics(buf)));

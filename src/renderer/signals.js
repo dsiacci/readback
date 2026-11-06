@@ -8,11 +8,15 @@ const {
   SmartSpectraSDK,
   ProcessingStatus,
   ValidationCode,
-  breathingMetrics,
-  cardioMetrics,
+  MetricType,
 } = require('@smartspectra/node-sdk/renderer');
 const { decodeMetrics } = require('@smartspectra/node-sdk/messages');
 const { makeSimulator } = require('../core/simulate');
+
+// Only what Readback uses: the chest movement trace, the breathing rate and
+// the pulse rate. Nothing else is computed (no apnea detection, no HRV, no
+// face analysis).
+const METRICS = [MetricType.CHEST_BREATHING, MetricType.BREATHING_RATE, MetricType.PULSE_RATE];
 
 const STATUS = Object.fromEntries(Object.entries(ProcessingStatus).map(([k, v]) => [v, k.replace(/^k/, '')]));
 
@@ -58,7 +62,7 @@ class PresageSource {
     if (!apiKey) throw new Error('No Presage API key found. See "Your Presage key" in the README.');
     const sdk = new SmartSpectraSDK({
       apiKey,
-      requestedMetrics: [...breathingMetrics, ...cardioMetrics],
+      requestedMetrics: METRICS,
       enableTelemetry: false, // no usage summary goes to Presage
     });
     this.sdk = sdk;
