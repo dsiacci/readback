@@ -1,0 +1,25 @@
+# Dependencies and builds
+node_modules/
+dist/
+out/
+
+# The tower's local Python environment and models
+tower/.venv/
+tower/voices/
+
+# Secrets: the Presage API key never goes into the repository
+*.key
+.env
+.env.*
+
+# Anything a session might save locally
+sessions/
+*.wav
+*.webm
+*.mp4
+*.mov
+
+# OS and editors
+.DS_Store
+.vscode/
+.idea/

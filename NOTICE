@@ -1,0 +1,21 @@
+Readback
+Copyright 2026 Dominique Siacci
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+This application uses, without including their code in this repository:
+
+- Presage SmartSpectra SDK (@smartspectra/node-sdk), proprietary software of
+  Presage Technologies, installed from npm and used under Presage's Terms of
+  Service (https://physiology.presagetech.com/tos). It measures pulse and
+  breathing from the camera, on the device.
+
+- phraseology (https://github.com/dsiacci/phraseology), GPL-3.0-or-later, by
+  the same author: the simulated tower. It is installed separately into a local
+  Python environment and runs as its own program; Readback talks to it over
+  HTTP on 127.0.0.1. Its own credits apply: Whisper (MIT) through
+  faster-whisper (MIT) and CTranslate2 (MIT), Silero VAD (MIT), Piper
+  (GPL-3.0-or-later) with espeak-ng (GPL-3.0-or-later) on ONNX Runtime (MIT),
+  and the Piper voices en_US-norman-medium and en_GB-cori-medium.
+
+- Electron (MIT) and esbuild (MIT).
