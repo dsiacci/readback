@@ -127,6 +127,12 @@ npm test
 
 They run in under a second, on simulated signals only: no camera, no microphone, no call to Presage's service. They cover reading the SDK's payloads, the calm-minute reference, counting breaths on a chest trace (clean, noisy, drifting, too short, flat), the listening stretch, the guide's offer and pacing, the tower message kinds, the timeline (a climb tied to the right message, and not inherited by the next one), the key file, the tower's command line, what a saved session may hold, and the WAV encoding.
 
+```bash
+npm run test:tower
+```
+
+Once the tower is installed, this plays the start of a circuit through the real tower in its text mode (no speech model, nothing spoken or recorded): a taxi request, a wrong QNH that gets "negative", the corrected readback. It takes a couple of seconds.
+
 ## Limits
 
 - **The SDK's own limits apply** ([model cards](https://smartspectra.presagetech.com/docs/model-cards-and-limitations)): the pulse is a 12-second average between 40 and 110 bpm; the breathing rate needs 30 seconds and does not hold while you talk, with large movements, dark or tightly striped clothing; good, steady light helps. Presage's metrics are for general wellness and information, not cleared by the FDA, and not for diagnosis.
