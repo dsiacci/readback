@@ -293,8 +293,9 @@ function tickCalm(now) {
   if (!S.calmStart) return;
   const elapsed = now - S.calmStart;
   const left = Math.max(0, CALM_MS - elapsed);
-  $('calm-seconds').textContent = String(Math.ceil(left / 1000));
-  $('ring').style.strokeDashoffset = String(326.7 * (1 - Math.min(1, elapsed / CALM_MS)));
+  $('calm-seconds').textContent = S.calm ? '✓' : String(Math.ceil(left / 1000));
+  $('calm-seconds').nextElementSibling.textContent = S.calm ? 'done' : 'seconds';
+  $('ring').style.strokeDashoffset = String(S.calm ? 0 : 326.7 * (1 - Math.min(1, elapsed / CALM_MS)));
   const p = S.store.latest('pulse');
   const chest = S.store.window('chest', now - 30000, now);
   const br = breathRateFromTrace(chest, { minSpanMs: 15000 });
